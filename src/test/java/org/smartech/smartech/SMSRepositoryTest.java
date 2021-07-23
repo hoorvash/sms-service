@@ -30,7 +30,7 @@ public class SMSRepositoryTest {
     public void testCreateQueue() {
         createSMS();
         Iterable<SMS> smsList = smsRepository.findAll();
-        Assertions.assertThat(smsList).extracting(SMS::getPhone).contains("09355432795");
+        Assertions.assertThat(smsList).extracting(SMS::getPhone).contains("09350000000");
     }
 
     @Test
