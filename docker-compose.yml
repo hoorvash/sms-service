@@ -1,0 +1,22 @@
+version: '3'
+services:
+  www:
+    build: ./DockerFiles/www
+    ports:
+      - 8081:8081
+    depends_on:
+      - redis
+    links:
+      - redis
+    volumes:
+      - ./target:/www
+  redis:
+    build: ./DockerFiles/redis
+    ports:
+    - 6363:6379
+    volumes:
+      - ./data/data_redis:/data:rw
+networks:
+  default:
+    name: hoor
+    driver: bridge

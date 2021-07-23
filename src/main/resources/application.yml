@@ -1,0 +1,13 @@
+server:
+  port: 8081
+
+sms:
+  service:
+    url1: http://localhost:8081/sms/send?
+    url2: http://localhost:8082/sms/send?
+    numberOfRetries: 3
+spring:
+  redis:
+    port: 6363
+    host: 127.0.0.1
+
