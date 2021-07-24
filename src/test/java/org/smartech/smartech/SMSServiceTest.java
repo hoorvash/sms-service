@@ -10,6 +10,7 @@ import org.smartech.smartech.enumeration.SMSStatus;
 import org.smartech.smartech.exception.ServiceCallException;
 import org.smartech.smartech.model.redis.SMS;
 import org.smartech.smartech.repository.SMSRepository;
+import org.smartech.smartech.repository.elasticsearch.SMSLogRepository;
 import org.smartech.smartech.service.HttpService;
 import org.smartech.smartech.service.SMSService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,11 +42,15 @@ public class SMSServiceTest {
     @MockBean
     HttpService httpService;
 
+    @MockBean
+    SMSLogRepository smsLogRepository;
+
     @Test
     public void testSuccessfulSMS() throws Exception {
         SMS sms = new SMS("1", "09355432795", "SMS Test", 1, LocalDateTime.now(), null);
         doReturn(sms).when(smsRepository).save(any());
         doReturn("SENT").when(httpService).getRequest(any(), any());
+        doReturn(null).when(smsLogRepository).save(any());
         GeneralDTO dto = smsService.sendSMS(sms.getPhone(), sms.getBodyText());
         Assertions.assertThat(dto.getResultCode()).isEqualTo(Constant.SUCCESSFUL_CODE);
         Assertions.assertThat(dto.getResultMsg()).isEqualTo(Constant.SUCCESSFUL_MSG);
@@ -57,6 +62,7 @@ public class SMSServiceTest {
         SMS sms = new SMS("1", "09355432795", "SMS Test", 1, LocalDateTime.now(), null);
         doReturn(sms).when(smsRepository).save(any());
         doReturn(null).when(httpService).getRequest(any(), any());
+        doReturn(null).when(smsLogRepository).save(any());
         GeneralDTO dto = smsService.sendSMS(sms.getPhone(), sms.getBodyText());
         Assertions.assertThat(dto.getResultCode()).isEqualTo(Constant.ExternalServiceException.SMS_FAILURE_CODE);
         Assertions.assertThat(dto.getResultMsg()).isEqualTo(Constant.ExternalServiceException.SMS_FAILURE_MSG);
@@ -69,6 +75,7 @@ public class SMSServiceTest {
         doReturn(sms).when(smsRepository).save(any());
         doThrow(new ServiceCallException(Constant.ExternalServiceException.SERVICE_CALL_ERROR_MSG,
                 Constant.ExternalServiceException.SERVICE_CALL_ERROR_CODE)).when(httpService).getRequest(any(), any());
+        doReturn(null).when(smsLogRepository).save(any());
         GeneralDTO dto = smsService.sendSMS(sms.getPhone(), sms.getBodyText());
         Assertions.assertThat(dto.getResultCode()).isEqualTo(Constant.ExternalServiceException.SERVICE_CALL_ERROR_CODE);
         Assertions.assertThat(dto.getResultMsg()).isEqualTo(Constant.ExternalServiceException.SERVICE_CALL_ERROR_MSG);
@@ -79,6 +86,7 @@ public class SMSServiceTest {
     public void testCounter() throws ServiceCallException {
         SMS sms = new SMS("1", "09355432795", "SMS Test", 1, LocalDateTime.now(), null);
         doReturn(sms).when(smsRepository).save(any());
+        doReturn(null).when(smsLogRepository).save(any());
         List<SMS> smsList = new ArrayList<>();
         smsList.add(sms);
         doReturn(smsList).when(smsRepository).findAll();

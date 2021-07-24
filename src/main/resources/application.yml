@@ -1,3 +1,9 @@
+spring:
+  application:
+    name: smsService
+  profiles:
+    active: docker
+
 server:
   port: 8081
 
@@ -6,8 +12,35 @@ sms:
     url1: http://localhost:8081/sms/send?
     url2: http://localhost:8082/sms/send?
     numberOfRetries: 3
+
+---
 spring:
+  config:
+    activate:
+      on-profile: dev
+
+  redis:
+    port: 6363
+    host: localhost
+
+elasticsearch:
+  host: localhost
+  port: 9200
+
+
+
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+
   redis:
     port: 6363
     host: "host.docker.internal"
+
+elasticsearch:
+  host: "host.docker.internal"
+  port: 9200
 

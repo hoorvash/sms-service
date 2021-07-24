@@ -8,3 +8,6 @@ sms:
     url1: http://localhost:8081/sms/send?
     url2: http://localhost:8082/sms/send?
     numberOfRetries: 10
+elasticsearch:
+  host: localhost
+  port: 9200

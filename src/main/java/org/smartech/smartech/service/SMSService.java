@@ -6,13 +6,17 @@ import org.smartech.smartech.constant.Constant;
 import org.smartech.smartech.dto.GeneralDTO;
 import org.smartech.smartech.enumeration.SMSStatus;
 import org.smartech.smartech.exception.ServiceCallException;
+import org.smartech.smartech.model.elasticsearch.SMSLog;
 import org.smartech.smartech.model.redis.SMS;
 import org.smartech.smartech.repository.SMSRepository;
+import org.smartech.smartech.repository.elasticsearch.SMSLogRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Date;
 
 @Service
 public class SMSService {
@@ -29,17 +33,27 @@ public class SMSService {
 
     private final HttpService httpService;
     private final SMSRepository smsRepository;
+    private final SMSLogRepository smsLogRepository;
 
-    public SMSService(HttpService httpService, SMSRepository smsRepository) {
+    public SMSService(HttpService httpService, SMSRepository smsRepository, SMSLogRepository smsLogRepository) {
         this.httpService = httpService;
         this.smsRepository = smsRepository;
+        this.smsLogRepository = smsLogRepository;
     }
 
     public GeneralDTO sendSMS(String number, String bodyText) {
         String response;
         GeneralDTO dto = new GeneralDTO();
+        SMS sms;
         try {
             response = callSMSService(number, bodyText);
+            sms = SMS.builder()
+                    .phone(number)
+                    .bodyText(bodyText)
+                    .tryCount(1)
+                    .dateTime(LocalDateTime.now())
+                    .lastTryDateTime(null)
+                    .build();
         } catch (ServiceCallException e) {
             saveNotSentSMS(number, bodyText);
             dto.setResultCode(Constant.ExternalServiceException.SERVICE_CALL_ERROR_CODE);
@@ -48,21 +62,23 @@ public class SMSService {
             return dto;
         }
         log.debug("Sms sent for number {} with message {} get response {} ", number, bodyText, response);
-        return interpretResponse(response);
+        return interpretResponse(response, sms);
     }
 
-    private GeneralDTO interpretResponse(String response) {
+    private GeneralDTO interpretResponse(String response, SMS sms) {
         // check if service response code shows "successfully sent"
         GeneralDTO dto = new GeneralDTO();
         if (response == null) { // or any other parsing and deciding
             dto.setResultCode(Constant.ExternalServiceException.SMS_FAILURE_CODE);
             dto.setResultMsg(Constant.ExternalServiceException.SMS_FAILURE_MSG);
             dto.setResult(SMSStatus.NOT_SUCCESSFUL);
+            logInElastic(sms, SMSStatus.NOT_SUCCESSFUL);
             return dto;
         }
         dto.setResultCode(Constant.SUCCESSFUL_CODE);
         dto.setResultMsg(Constant.SUCCESSFUL_MSG);
         dto.setResult(SMSStatus.SENT);
+        logInElastic(sms, SMSStatus.SENT);
         return dto;
     }
 
@@ -89,12 +105,13 @@ public class SMSService {
                 .dateTime(LocalDateTime.now())
                 .build();
         smsRepository.save(sms);
+        logInElastic(sms, SMSStatus.SMS_SERVICES_NOT_AVAILABLE);
     }
 
     public void sendAgain() {
         smsRepository.findAll().forEach(sms -> {
             try {
-                callSMSService(sms.getPhone(), sms.getBodyText());
+                GeneralDTO dto = interpretResponse(callSMSService(sms.getPhone(), sms.getBodyText()), sms);
                 getSMSOutOfQueueIfNecessary(sms, true);
             } catch (ServiceCallException e) {
                 boolean isDeleted = getSMSOutOfQueueIfNecessary(sms, false);
@@ -109,10 +126,13 @@ public class SMSService {
     public boolean getSMSOutOfQueueIfNecessary(SMS sms, boolean instantDelete) {
         boolean isEligible = instantDelete || sms.getTryCount() >= numberOfRetries - 1;
         if (isEligible) {
-            log.info(" Deleting sms with number {} and text {} with number of tries {} because {} " ,
-                            sms.getPhone(), sms.getBodyText(), sms.getTryCount(),
+            log.info(" Deleting sms with number {} and text {} with number of tries {} because {} ",
+                    sms.getPhone(), sms.getBodyText(), sms.getTryCount(),
                     (instantDelete) ? "It's been sent" : "Try number reached to the limit");
             smsRepository.delete(sms);
+            if (!instantDelete) {
+                logInElastic(sms, SMSStatus.SMS_SERVICES_NOT_AVAILABLE);
+            }
         }
         return isEligible;
     }
@@ -122,5 +142,24 @@ public class SMSService {
         sms.setLastTryDateTime(LocalDateTime.now());
         sms.setTryCount(sms.getTryCount() + 1);
         smsRepository.save(sms);
+        logInElastic(sms, SMSStatus.SMS_SERVICES_NOT_AVAILABLE);
+    }
+
+    public void logInElastic(SMS sms, SMSStatus newStatus) {
+        try {
+            smsLogRepository.save(
+                    SMSLog.builder()
+                            .id(sms.getId())
+                            .phone(sms.getPhone())
+                            .bodyText(sms.getBodyText())
+                            .tryCount(sms.getTryCount())
+                            .smsStatus(newStatus)
+                            .dateTime(Date.from(sms.getDateTime().atZone(ZoneId.systemDefault()).toInstant()))
+                            .lastTryDateTime((sms.getLastTryDateTime() != null) ? Date.from(sms.getLastTryDateTime().atZone(ZoneId.systemDefault()).toInstant()) : null)
+                            .build()
+            );
+        } catch (Exception e) {
+            log.error("Error in saving elastic for SMS {} ", sms.toString());
+        }
     }
 }

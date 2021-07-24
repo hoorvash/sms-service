@@ -26,4 +26,9 @@ public class Constant {
         public static final Integer SMS_FAILURE_CODE = 1003;
     }
 
+    public static class Validation {
+        public static final String INVALID_MOBILE_NUMBER_MSG = "Invalid Mobile Number";
+        public static final Integer INVALID_MOBILE_NUMBER_CODE = 1004;
+    }
+
 }
