@@ -16,8 +16,8 @@ public class SMSScheduler {
         this.smsService = smsService;
     }
 
-//    @Scheduled(cron = "0 0 0/2 ? * *")
-    @Scheduled(fixedDelay = 5000, initialDelay = 5000)
+    @Scheduled(cron = "0 0 0/2 ? * *")
+//    @Scheduled(fixedDelay = 30000, initialDelay = 5000)
     public void sendSMS() {
         log.info("Scheduler started :: ");
         smsService.sendAgain();

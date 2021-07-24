@@ -9,5 +9,5 @@ sms:
 spring:
   redis:
     port: 6363
-    host: 127.0.0.1
+    host: "host.docker.internal"
 

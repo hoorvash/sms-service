@@ -1,6 +1,6 @@
 spring:
   redis:
-    port: 6000
+    port: 6363
     host: localhost
 
 sms:

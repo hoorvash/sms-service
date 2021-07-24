@@ -45,11 +45,11 @@ public class SMSServiceTest {
     public void testSuccessfulSMS() throws Exception {
         SMS sms = new SMS("1", "09355432795", "SMS Test", 1, LocalDateTime.now(), null);
         doReturn(sms).when(smsRepository).save(any());
-        doReturn("").when(httpService).getRequest(any(), any());
+        doReturn("SENT").when(httpService).getRequest(any(), any());
         GeneralDTO dto = smsService.sendSMS(sms.getPhone(), sms.getBodyText());
-        Assertions.assertThat(dto.getResultCode().equals(Constant.SUCCESSFUL_CODE));
-        Assertions.assertThat(dto.getResultMsg().equals(Constant.SUCCESSFUL_MSG));
-        Assertions.assertThat(dto.getResult().equals(SMSStatus.SENT));
+        Assertions.assertThat(dto.getResultCode()).isEqualTo(Constant.SUCCESSFUL_CODE);
+        Assertions.assertThat(dto.getResultMsg()).isEqualTo(Constant.SUCCESSFUL_MSG);
+        Assertions.assertThat(dto.getResult()).isEqualTo(SMSStatus.SENT);
     }
 
     @Test
@@ -58,20 +58,21 @@ public class SMSServiceTest {
         doReturn(sms).when(smsRepository).save(any());
         doReturn(null).when(httpService).getRequest(any(), any());
         GeneralDTO dto = smsService.sendSMS(sms.getPhone(), sms.getBodyText());
-        Assertions.assertThat(dto.getResultCode().equals(Constant.ExternalServiceException.SMS_FAILURE_CODE));
-        Assertions.assertThat(dto.getResultMsg().equals(Constant.ExternalServiceException.SMS_FAILURE_MSG));
-        Assertions.assertThat(dto.getResult().equals(SMSStatus.NOT_SUCCESSFUL));
+        Assertions.assertThat(dto.getResultCode()).isEqualTo(Constant.ExternalServiceException.SMS_FAILURE_CODE);
+        Assertions.assertThat(dto.getResultMsg()).isEqualTo(Constant.ExternalServiceException.SMS_FAILURE_MSG);
+        Assertions.assertThat(dto.getResult()).isEqualTo(SMSStatus.NOT_SUCCESSFUL);
     }
 
     @Test
     public void testServiceCallError() throws Exception {
         SMS sms = new SMS("1", "09355432795", "SMS Test", 1, LocalDateTime.now(), null);
         doReturn(sms).when(smsRepository).save(any());
-        doReturn(null).when(httpService).getRequest(any(), any());
+        doThrow(new ServiceCallException(Constant.ExternalServiceException.SERVICE_CALL_ERROR_MSG,
+                Constant.ExternalServiceException.SERVICE_CALL_ERROR_CODE)).when(httpService).getRequest(any(), any());
         GeneralDTO dto = smsService.sendSMS(sms.getPhone(), sms.getBodyText());
-        Assertions.assertThat(dto.getResultCode().equals(Constant.ExternalServiceException.SERVICE_CALL_ERROR_CODE));
-        Assertions.assertThat(dto.getResultMsg().equals(Constant.ExternalServiceException.SERVICE_CALL_ERROR_MSG));
-        Assertions.assertThat(dto.getResult().equals(SMSStatus.SMS_SERVICES_NOT_AVAILABLE));
+        Assertions.assertThat(dto.getResultCode()).isEqualTo(Constant.ExternalServiceException.SERVICE_CALL_ERROR_CODE);
+        Assertions.assertThat(dto.getResultMsg()).isEqualTo(Constant.ExternalServiceException.SERVICE_CALL_ERROR_MSG);
+        Assertions.assertThat(dto.getResult()).isEqualTo(SMSStatus.SMS_SERVICES_NOT_AVAILABLE);
     }
 
     @Test
@@ -85,16 +86,16 @@ public class SMSServiceTest {
                 Constant.ExternalServiceException.SERVICE_CALL_ERROR_CODE)).when(httpService).getRequest(any(), any());
 
         boolean isNecessary = smsService.getSMSOutOfQueueIfNecessary(sms, false);
-        Assertions.assertThat(!isNecessary);
+        Assertions.assertThat(isNecessary).isFalse();
 
         smsService.sendAgain();
-        Assertions.assertThat(sms.getTryCount() == 2);
+        Assertions.assertThat(sms.getTryCount()).isEqualTo(2);
 
         for (int i = 2 ; i < tryCount + 1; i++) { // more than try count
             smsService.sendAgain();
         }
-        Assertions.assertThat(sms.getTryCount() == tryCount - 1); // stay equals to try count
+        Assertions.assertThat(sms.getTryCount()).isEqualTo(tryCount - 1); // stay equals to try count
         isNecessary = smsService.getSMSOutOfQueueIfNecessary(sms, false);
-        Assertions.assertThat(isNecessary);
+        Assertions.assertThat(isNecessary).isTrue();
     }
 }
